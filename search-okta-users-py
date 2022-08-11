@@ -1,0 +1,49 @@
+#search-okta-users.py
+import asyncio
+import csv
+import logging
+import os
+from dotenv import load_dotenv
+from io import IOBase
+from okta.client import Client as OktaClient
+
+load_dotenv('/Projects/okta-sdk-python/.env')
+
+# Instantiating with a Python dictionary in the constructor
+config = {
+    'orgUrl': f"https://{os.getenv('OKTA_DOMAIN')}",
+    'token': os.getenv('OKTA_API')
+}
+okta_client = OktaClient(config)
+
+# example of usage, list all users and print their first name and last name
+async def main():
+    #If filtering by email, lastName, or firstName, it may be easier to use q instead of filter.
+    #hhttps://developer.okta.com/docs/reference/api/users/#list-users-with-search
+    #Users whose firstName starts with ga_
+    #query_parameters = {'search': 'profile.firstName sw "ga_"'}
+    csv_header = ['status', 'firstName', 'lastName', 'login', 'email', 'created']
+    with open('/Downloads/gas_created_last_6_months.csv', 'a', encoding='UTF8', newline='') as f2:
+        writer = csv.writer(f2)
+        # write header row
+        writer.writerow(csv_header) 
+        
+    query_parameters = {'search': 'profile.login sw "login" and created gt "2022-03-01T00:00:00.000Z"'}
+    users, resp, err = await okta_client.list_users(query_parameters)
+    for user in users:
+        created = user.created
+        email =  user.profile.email
+        firstName = user.profile.firstName
+        lastName = user.profile.lastName
+        login = user.profile.login
+        status = user.status
+        data = [status, firstName, lastName, login, email, created]
+        #opening a file with the 'a' parameter allows you to append to the end of the file instead of simply overwriting the existing content.
+        #the 'w' parameter simply overwrites
+        with open('/Downloads/gas_created_last_6_months.csv', 'a', encoding='UTF8', newline='') as f2:
+            writer = csv.writer(f2)
+            # write multiple row
+            writer.writerow(data)          
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
